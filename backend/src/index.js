@@ -10,19 +10,12 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-// Shared-secret auth for anything Apps Script calls (POST /api/ideas etc).
-// The dashboard's own frontend calls /api/drafts/* without this header,
-// so we only enforce it on the ideas intake routes.
-function requireServiceKey(req, res, next) {
-  if (req.headers["x-service-key"] !== process.env.NODE_APP_SECRET) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
-  next();
-}
-
 app.get("/health", (req, res) => res.json({ ok: true }));
 
-app.use("/api/ideas", requireServiceKey, ideasRouter);
+// /api/ideas mixes Apps-Script-only routes and dashboard-only routes, so
+// the service-key check is applied per-route inside routes/ideas.js instead
+// of here.
+app.use("/api/ideas", ideasRouter);
 app.use("/api/drafts", draftsRouter);
 
 // Serve the built React frontend in production (after `npm run build` in /frontend)

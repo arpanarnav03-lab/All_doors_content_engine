@@ -1,4 +1,5 @@
 import { Routes, Route, NavLink } from "react-router-dom";
+import Ideas from "./pages/Ideas.jsx";
 import Queue from "./pages/Queue.jsx";
 import Review from "./pages/Review.jsx";
 import Published from "./pages/Published.jsx";
@@ -28,7 +29,8 @@ export default function App() {
             <p className="text-xs text-slate-500">AI-generated drafts, human-approved</p>
           </div>
           <nav className="flex gap-2">
-            <NavItem to="/">Queue</NavItem>
+            <NavItem to="/">Ideas</NavItem>
+            <NavItem to="/queue">Queue</NavItem>
             <NavItem to="/published">Published</NavItem>
           </nav>
         </div>
@@ -36,7 +38,8 @@ export default function App() {
 
       <main className="max-w-5xl mx-auto px-6 py-8">
         <Routes>
-          <Route path="/" element={<Queue />} />
+          <Route path="/" element={<Ideas />} />
+          <Route path="/queue" element={<Queue />} />
           <Route path="/review/:id" element={<Review />} />
           <Route path="/published" element={<Published />} />
         </Routes>

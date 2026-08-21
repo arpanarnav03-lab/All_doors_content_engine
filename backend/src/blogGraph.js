@@ -25,18 +25,26 @@ function buildBlogPrompt(item, targetWords) {
     "Source article text (for grounding, do not copy sentences from it): " + groundingText + "\n" +
     "Source URL: " + item.Source + "\n\n" +
     "Identify the primary topic/concept this article is really about (e.g. a policy, a " +
-    "project type, a market mechanism, a regulation) - this becomes your target keyword, " +
-    "repeated naturally throughout headers and body text the way authoritative reference " +
-    "content does, without keyword-stuffing.\n\n" +
+    "project type, a market mechanism, a regulation, a partnership, a company move) - this " +
+    "becomes your target keyword, repeated naturally throughout headers and body text the " +
+    "way authoritative reference content does, without keyword-stuffing.\n\n" +
+    "FACTUAL GROUNDING (critical): facts, figures, names, dates, and quotes from the source " +
+    "are NOT copyrighted and MUST be used, stated directly in your own sentence structure - " +
+    "only copying the source's exact phrasing is prohibited. Do not omit concrete details " +
+    "(dates, figures, spokesperson names, specific numbers, locations, amounts) in the name " +
+    "of avoiding copying. Paraphrase quotes rather than dropping them entirely. The article " +
+    "must include at least 4-5 concrete facts from the source, integrated naturally into the " +
+    "body - an article built mostly from speculation without grounding in the actual " +
+    "reported facts is incomplete and unacceptable.\n\n" +
     "Structure the body EXACTLY as follows, in this order:\n\n" +
     "1. OPENING DEFINITION (no subheading, goes directly under the title): 2-4 sentences " +
     "that directly and authoritatively answer 'what is [topic]' or 'what happened' as if " +
     "opening a reference entry. No throat-clearing, no 'in this article we will discuss'. " +
-    "State the core fact/definition immediately, then why it matters to a Bangalore " +
-    "homebuyer, renter, or investor.\n\n" +
+    "State the core fact/definition immediately, using real specifics from the source, then " +
+    "why it matters to a Bangalore homebuyer, renter, or investor.\n\n" +
     "2. \"## What Is [Topic]?\" or equivalent definitional heading - expand the opening " +
     "definition into a full paragraph, explaining the concept clearly for someone " +
-    "encountering it for the first time.\n\n" +
+    "encountering it for the first time, grounded in the actual facts from the source.\n\n" +
     "3. \"## Why [Topic] Matters\" or equivalent - open with one framing sentence, then a " +
     "short bolded lead-in line like 'Key reasons this matters:' followed by 4-6 bullet " +
     "points, each a short punchy phrase (not full sentences). Close with one sentence " +
@@ -49,10 +57,12 @@ function buildBlogPrompt(item, targetWords) {
     "5. WITHIN one of the sections above, include a genuine INFERENCE not stated in the " +
     "source article - a reasonable conclusion a knowledgeable local real estate observer " +
     "would draw, based on real signals in the source text (numbers, timing, precedent, " +
-    "comparable areas). Signal this is analysis, not a reported fact, with phrasing like " +
-    "'what this likely means, though it's not explicitly stated, is...' or 'reading " +
-    "between the lines here...'. If nothing is genuinely inferable, fall back to the " +
-    "unique insight provided above instead of inventing a stretch.\n\n" +
+    "comparable areas). Signal this is analysis, not a reported fact, but VARY the phrasing " +
+    "you use to signal this each time - do not default to the same transitional phrase " +
+    "(e.g. do not always say 'reading between the lines here' or always say 'what this " +
+    "likely means, though it's not explicitly stated, is'). Choose wording that fits this " +
+    "specific article naturally. If nothing is genuinely inferable, fall back to the unique " +
+    "insight provided above instead of inventing a stretch.\n\n" +
     "6. \"## [Topic] vs [Comparable Alternative]\" (only include this section if a " +
     "genuine comparison exists - e.g. this locality vs a comparable one, buying now vs " +
     "waiting, this project type vs another). Open with a framing paragraph on why the " +
@@ -74,7 +84,9 @@ function buildBlogPrompt(item, targetWords) {
     "on its own line immediately followed by a 2-4 sentence answer (denser and more " +
     "complete than a one-liner - each answer should be able to stand alone as a full " +
     "explanation), with a blank line between separate Q&A pairs. Base these on the " +
-    "actual content, not generic filler.\n\n" +
+    "actual content, not generic filler. VARY how each answer opens - do not start most " +
+    "or all answers with the same hedge phrase (e.g. do not always begin with 'Not " +
+    "necessarily, but...'). Answer directly and vary sentence openings naturally.\n\n" +
     "TABLES: include one if section 6 (comparison) is used, or if the data points " +
     "genuinely contain comparable rows/columns worth tabulating (prices across " +
     "localities, before/after figures, a timeline, stage-by-stage breakdowns). Do NOT " +
@@ -87,12 +99,20 @@ function buildBlogPrompt(item, targetWords) {
     "  - Each table object: {\"caption\": \"short one-line caption\", \"headers\": " +
     "[\"...\", \"...\"], \"rows\": [[\"...\", \"...\"], [\"...\", \"...\"]]}.\n\n" +
     "Additional requirements:\n" +
+    "- Write in Indian English throughout: use British/Indian spelling conventions " +
+    "(e.g. 'organisation' not 'organization', 'colour' not 'color', 'realise' not " +
+    "'realize', 'centre' not 'center', 'programme' not 'program', 'favour' not 'favor', " +
+    "'analyse' not 'analyze'). Use Indian numbering conventions where natural (lakh, " +
+    "crore) alongside or instead of million/billion when referring to Indian currency " +
+    "or figures, matching how the source data expresses them. Avoid American-only " +
+    "idioms, phrasing, or spellings throughout the headline, meta description, and " +
+    "body.\n" +
     "- EXPLAIN UNCOMMON TERMS ON FIRST USE, BRIEFLY: any acronym, industry jargon, or " +
     "specialized concept a general homebuyer/investor wouldn't already know must be " +
     "expanded the FIRST time it appears, not later in the article. This includes " +
     "acronyms (spell out in full, e.g. 'facility management (FM) companies' not just " +
     "'FM companies'), regulatory/legal terms, real estate jargon (Grade-A/Grade-B, " +
-    "absorption, micro-market), and any organization type or mechanism a layperson " +
+    "absorption, micro-market), company/organization types, and any concept a layperson " +
     "wouldn't recognize by name alone.\n" +
     "  KEEP THE EXPLANATION SHORT: a 3-8 word clause folded into the same sentence, " +
     "never a separate sentence, parenthetical dump, or standalone definition. Example: " +
@@ -115,7 +135,7 @@ function buildBlogPrompt(item, targetWords) {
     "summary.\n" +
     "- Do not include the headline inside the body - it goes in a separate field.\n" +
     "- Write original analysis - do not copy sentences from the summary or source text " +
-    "verbatim.\n" +
+    "verbatim, but DO state the actual facts (see FACTUAL GROUNDING above).\n" +
     "- Never use em dashes (—) or en dashes (–) anywhere in the headline, meta " +
     "description, or body - use commas, periods, or parentheses instead. This applies " +
     "to every sentence, not just some.\n\n" +

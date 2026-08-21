@@ -28,4 +28,29 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ideas (
+    id TEXT PRIMARY KEY,
+    item_json TEXT NOT NULL,
+    keyword TEXT NOT NULL,
+    search_volume INTEGER,
+    competition TEXT,
+    is_bucketed INTEGER DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'new', -- new | drafted | dismissed
+    draft_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS live_keyword_volume (
+    id TEXT PRIMARY KEY,
+    keyword TEXT NOT NULL UNIQUE,
+    search_volume INTEGER,
+    competition TEXT,
+    is_bucketed INTEGER DEFAULT 0,
+    checked_at TEXT DEFAULT (datetime('now'))
+  )
+`);
+
 module.exports = db;

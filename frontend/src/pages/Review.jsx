@@ -44,7 +44,7 @@ export default function Review() {
     await api.saveDraft(id, { headline, metaDescription, body });
     try {
       await api.approveDraft(id);
-      navigate("/");
+      navigate("/queue");
     } catch (err) {
       alert("Approve failed: " + err.message);
       setApproving(false);
@@ -54,12 +54,12 @@ export default function Review() {
   async function handleReject() {
     if (!confirm("Reject this draft? It won't be sent to the Sheet or Doc.")) return;
     await api.rejectDraft(id);
-    navigate("/");
+    navigate("/queue");
   }
 
   return (
     <div>
-      <button onClick={() => navigate("/")} className="text-sm text-slate-500 hover:text-slate-700 mb-4">
+      <button onClick={() => navigate("/queue")} className="text-sm text-slate-500 hover:text-slate-700 mb-4">
         ← Back to Queue
       </button>
 

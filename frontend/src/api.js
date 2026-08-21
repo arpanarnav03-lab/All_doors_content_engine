@@ -20,4 +20,7 @@ export const api = {
     request(`/drafts/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   approveDraft: (id) => request(`/drafts/${id}/approve`, { method: "POST" }),
   rejectDraft: (id) => request(`/drafts/${id}/reject`, { method: "POST" }),
+  getIdeas: (status = "new") => request(`/ideas?status=${status}`),
+  generateDraft: (id) => request(`/ideas/${id}/generate-draft`, { method: "POST" }),
+  dismissIdea: (id) => request(`/ideas/${id}/dismiss`, { method: "POST" }),
 };
