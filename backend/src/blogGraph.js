@@ -5,7 +5,8 @@ const { extractJsonBlock, stripEmDashesDeep } = require("./utils/text");
  * Builds the exact prompt used by Apps Script's generateBlogPost(), so
  * output shape/quality stays consistent with what you had before.
  */
-function buildBlogPrompt(item, targetWords) {
+function buildBlogPrompt(item, targetWords, keywordData) {
+  const relatedQuestions = (keywordData && keywordData.relatedQuestions) || [];
   const groundingText =
     item.ArticleText && item.ArticleText.length > 200
       ? item.ArticleText
@@ -28,6 +29,28 @@ function buildBlogPrompt(item, targetWords) {
     "project type, a market mechanism, a regulation, a partnership, a company move) - this " +
     "becomes your target keyword, repeated naturally throughout headers and body text the " +
     "way authoritative reference content does, without keyword-stuffing.\n\n" +
+    "SEARCH INTENT: before writing, determine what a reader searching for this topic is " +
+    "actually trying to find out - are they looking for a quick fact/definition " +
+    "(informational), comparing options before a decision (commercial), or ready to act " +
+    "(transactional)? Write the entire article to satisfy that specific intent directly - " +
+    "don't pad with tangential background the searcher didn't ask for. If the intent is " +
+    "informational, prioritize a clear, direct answer over persuasive framing. If it's " +
+    "commercial/transactional in nature (e.g. the reader is weighing whether to buy now), " +
+    "make sure the article gives them enough to actually decide, not just context.\n\n" +
+    "HEADLINE STYLE: keep the headline direct and simple, not descriptive or keyword-stuffed. " +
+    "Prefer a short, punchy phrase that still identifies the specific subject clearly, over " +
+    "a full sentence - e.g. 'Namma Metro Phase 3 Approved' rather than 'Namma Metro Phase 3 " +
+    "Approved: What the JP Nagar-Hebbal Line Means for Bengaluru Property Prices'. Include " +
+    "enough specificity that a reader immediately knows which project, policy, or event this " +
+    "is about (e.g. keep 'Phase 3', a project name, or a locality if that's what distinguishes " +
+    "this story from similar ones) - do not shorten to the point of vagueness. Aim for " +
+    "roughly 5-9 words where the news genuinely supports it.\n\n" +
+    "KEYWORD PLACEMENT: place the primary keyword naturally in these specific locations: " +
+    "the headline, the first sentence of the opening paragraph, at least one H2 heading, " +
+    "the meta description, and once more naturally within the Conclusion. Do not repeat " +
+    "the exact keyword phrase more than once in the same paragraph, and never force it " +
+    "into a sentence where it reads unnaturally - rephrase the sentence instead of " +
+    "dropping the keyword in verbatim if it doesn't fit grammatically.\n\n" +
     "FACTUAL GROUNDING (critical): facts, figures, names, dates, and quotes from the source " +
     "are NOT copyrighted and MUST be used, stated directly in your own sentence structure - " +
     "only copying the source's exact phrasing is prohibited. Do not omit concrete details " +
@@ -37,24 +60,35 @@ function buildBlogPrompt(item, targetWords) {
     "body - an article built mostly from speculation without grounding in the actual " +
     "reported facts is incomplete and unacceptable.\n\n" +
     "Structure the body EXACTLY as follows, in this order:\n\n" +
-    "1. OPENING DEFINITION (no subheading, goes directly under the title): 2-4 sentences " +
+    "DIRECT ANSWER FIRST: the very first sentence of the opening paragraph must directly " +
+    "answer the core question a reader searching this topic would have (what happened, what " +
+    "it is, or what the key fact is) - not a scene-setting lead-in. A reader should get the " +
+    "single most important fact within the first sentence, before any elaboration, context, " +
+    "or why-it-matters framing follows.\n\n" +
+    "1. OPENING DEFINITION (no subheading, goes directly under the title): 3-5 sentences " +
     "that directly and authoritatively answer 'what is [topic]' or 'what happened' as if " +
-    "opening a reference entry. No throat-clearing, no 'in this article we will discuss'. " +
-    "State the core fact/definition immediately, using real specifics from the source, then " +
-    "why it matters to a Bangalore homebuyer, renter, or investor.\n\n" +
-    "2. \"## What Is [Topic]?\" or equivalent definitional heading - expand the opening " +
-    "definition into a full paragraph, explaining the concept clearly for someone " +
-    "encountering it for the first time, grounded in the actual facts from the source.\n\n" +
-    "3. \"## Why [Topic] Matters\" or equivalent - open with one framing sentence, then a " +
+    "opening a reference entry, and fully explain the concept clearly for someone " +
+    "encountering it for the first time - there is no separate definitional section later " +
+    "in the structure, so this opening paragraph carries that full weight on its own. No " +
+    "throat-clearing, no 'in this article we will discuss'. State the core fact/definition " +
+    "immediately, using real specifics from the source, then explain why it matters to a " +
+    "Bangalore homebuyer, renter, or investor.\n\n" +
+    "2. \"## Why [Topic] Matters\" or equivalent - open with one framing sentence, then a " +
     "short bolded lead-in line like 'Key reasons this matters:' followed by 4-6 bullet " +
     "points, each a short punchy phrase (not full sentences). Close with one sentence " +
     "tying the bullets back to the main keyword/topic.\n\n" +
-    "4. \"## How [Topic] Works\" or \"## What This Means For [Locality/Buyers]\" - open with " +
-    "a framing paragraph, then break into 3-5 sub-topics. For EACH sub-topic, write a " +
-    "short bolded lead phrase (2-5 words, like a mini-heading) as the FIRST few words of " +
-    "its paragraph, followed immediately by 2-4 sentences of explanation. Do not use a " +
-    "real heading for these, just start the paragraph with the bolded phrase inline.\n\n" +
-    "5. WITHIN one of the sections above, include a genuine INFERENCE not stated in the " +
+    "3. \"## How [Topic] Works\" or \"## What This Means For [Locality/Buyers]\" - open with " +
+    "a framing paragraph, then break into 3-5 sub-topics. For EACH sub-topic, use a genuine " +
+    "H3 sub-heading marked with \"### \" on its own line (e.g. \"### Timeline and " +
+    "approvals\"), immediately followed by 2-4 sentences of explanation as a normal " +
+    "paragraph below it. Keep each H3 sub-heading short (3-6 words), stating the sub-topic " +
+    "directly. Within each sub-topic's explanation paragraph, lead with the direct answer " +
+    "or key point for that sub-topic FIRST, then explain the reasoning or context after. " +
+    "Do not build up to the point through background before stating it - state it, then " +
+    "support it. This applies to the Who Benefits section too: each group's paragraph " +
+    "(below its H3) should open by stating the specific benefit directly, not building " +
+    "toward it through preamble.\n\n" +
+    "4. WITHIN one of the sections above, include a genuine INFERENCE not stated in the " +
     "source article - a reasonable conclusion a knowledgeable local real estate observer " +
     "would draw, based on real signals in the source text (numbers, timing, precedent, " +
     "comparable areas). Signal this is analysis, not a reported fact, but VARY the phrasing " +
@@ -63,22 +97,26 @@ function buildBlogPrompt(item, targetWords) {
     "likely means, though it's not explicitly stated, is'). Choose wording that fits this " +
     "specific article naturally. If nothing is genuinely inferable, fall back to the unique " +
     "insight provided above instead of inventing a stretch.\n\n" +
-    "6. \"## [Topic] vs [Comparable Alternative]\" (only include this section if a " +
+    "5. \"## [Topic] vs [Comparable Alternative]\" (only include this section if a " +
     "genuine comparison exists - e.g. this locality vs a comparable one, buying now vs " +
     "waiting, this project type vs another). Open with a framing paragraph on why the " +
     "comparison matters, then include a comparison TABLE (see TABLES instructions " +
     "below), then a closing paragraph interpreting what the comparison means for the " +
     "reader. Skip this entire section if no genuine comparison exists in the source " +
     "material - do not force one.\n\n" +
-    "7. \"## What This Means for Alldoors Buyers\" or similarly branded section - 2-3 " +
-    "sub-topics (same bolded-lead-phrase-inline style as section 4) connecting the topic " +
-    "to practical next steps a reader should take (questions to ask a developer, things " +
-    "to verify, timing considerations). Keep this genuinely useful, not a sales pitch.\n\n" +
-    "8. \"## Conclusion\" - 2-3 short paragraphs (not one dense block): first restates the " +
+    "6. \"## Who Benefits From [Topic]\" - identify 3-4 distinct groups affected by this " +
+    "news (e.g. homeowners near the relevant area, investors, renters/tenants, or other " +
+    "specific groups relevant to this particular article - choose whichever groups " +
+    "genuinely apply, don't force all four if fewer are relevant). For EACH group, use a " +
+    "genuine H3 sub-heading marked with \"### \" stating who the group is (e.g. " +
+    "\"### Investors\" or \"### Homeowners near [locality]\"), immediately followed by 2-3 " +
+    "sentences explaining the specific benefit or impact for that group, grounded in the " +
+    "article's actual facts.\n\n" +
+    "7. \"## Conclusion\" - 2-3 short paragraphs (not one dense block): first restates the " +
     "core fact/definition and why it matters, second connects it to the bigger picture " +
     "(the locality's or Bangalore's broader trajectory), third gives a clear, direct " +
     "closing takeaway sentence.\n\n" +
-    "9. \"## FAQs\" - 6-8 question-and-answer pairs a Bangalore homebuyer/investor " +
+    "8. \"## FAQs\" - 6-8 question-and-answer pairs a Bangalore homebuyer/investor " +
     "searching about this topic would realistically ask, ordered from most basic " +
     "('What is [topic]?') to more specific/practical. Format each pair as the question " +
     "on its own line immediately followed by a 2-4 sentence answer (denser and more " +
@@ -87,7 +125,32 @@ function buildBlogPrompt(item, targetWords) {
     "actual content, not generic filler. VARY how each answer opens - do not start most " +
     "or all answers with the same hedge phrase (e.g. do not always begin with 'Not " +
     "necessarily, but...'). Answer directly and vary sentence openings naturally.\n\n" +
-    "TABLES: include one if section 6 (comparison) is used, or if the data points " +
+    "REAL SEARCHED QUESTIONS: here are actual questions Google shows people also ask for " +
+    "this topic's keyword: " + (relatedQuestions && relatedQuestions.length > 0 ?
+    relatedQuestions.map(q => q.question).join(" | ") : "none available for this keyword") +
+    "\n" +
+    "Where any of these real questions genuinely fit this article's content, use them as " +
+    "FAQ questions, matching their exact or near-exact phrasing rather than rewriting them - " +
+    "real searched phrasing is more likely to match what readers actually search for. Fill " +
+    "any remaining FAQ slots with additional relevant questions based on the article's " +
+    "content if fewer than 6 of the provided questions are relevant or none were provided. " +
+    "Still apply the NO CONTENT DUPLICATION rule below to these questions same as any other " +
+    "FAQ - a real searched question is still skipped if its answer would just restate body " +
+    "content already covered.\n\n" +
+    "NO CONTENT DUPLICATION BETWEEN BODY AND FAQs: before finalizing your FAQs, check " +
+    "every fact, figure, or explanation you plan to include against what the body sections " +
+    "above already cover. If an FAQ question's answer would just restate something already " +
+    "explained in a body section (the same fact, cost, location, or definition), do NOT " +
+    "include that FAQ - either it belongs in the body only, or the body doesn't need it and " +
+    "the FAQ can cover it instead, but never both. As a rule: if a fact is central to " +
+    "understanding the article, explain it once in the body, not again in an FAQ. If a fact " +
+    "is minor, specific, or a natural follow-up question a reader would ask after already " +
+    "understanding the body, save it for the FAQ instead of cramming it into a body section. " +
+    "Each FAQ should teach the reader something the body did not already state. If applying " +
+    "this rule leaves fewer than 6 genuinely non-duplicated questions, it is fine to include " +
+    "only as many FAQs as pass this check rather than padding with restated content - " +
+    "quality and non-duplication matter more than hitting a fixed count.\n\n" +
+    "TABLES: include one if section 5 (comparison) is used, or if the data points " +
     "genuinely contain comparable rows/columns worth tabulating (prices across " +
     "localities, before/after figures, a timeline, stage-by-stage breakdowns). Do NOT " +
     "invent a table if the material doesn't support it. If included:\n" +
@@ -186,12 +249,13 @@ function validateBlog(blog) {
 async function runBlogGraph(item, opts = {}) {
   const targetWords = opts.targetWords || process.env.BLOG_TARGET_WORDS || 800;
   const maxRetries = opts.maxRetries ?? 1;
+  const keywordData = opts.keywordData || {};
 
   let lastBlog = null;
   let lastIssues = [];
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const prompt = buildBlogPrompt(item, targetWords);
+    const prompt = buildBlogPrompt(item, targetWords, keywordData);
     const rawText = await callClaude({
       model: process.env.CLAUDE_MODEL,
       maxTokens: Number(process.env.CLAUDE_MAX_TOKENS_BLOG) || 3000,

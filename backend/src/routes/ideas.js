@@ -5,7 +5,7 @@ const requireServiceKey = require("../middleware/requireServiceKey");
 const { runBlogGraph } = require("../blogGraph");
 const { extractPrimaryKeyword } = require("../services/keywordExtraction");
 const { getKeywordVolume } = require("../services/keywordPlanner");
-const { checkKeywordSerp } = require("../services/serpCheck");
+const { checkKeywordSerp, normalizeSerpResults } = require("../services/serpCheck");
 const asyncHandler = require("../utils/asyncHandler");
 
 const router = express.Router();
@@ -18,7 +18,7 @@ function rowToIdea(row) {
     searchVolume: row.search_volume,
     competition: row.competition,
     isBucketed: !!row.is_bucketed,
-    serpResults: row.serp_results_json ? JSON.parse(row.serp_results_json) : [],
+    serpResults: normalizeSerpResults(row.serp_results_json ? JSON.parse(row.serp_results_json) : null),
     status: row.status,
     draftId: row.draft_id,
     createdAt: row.created_at,
@@ -51,14 +51,14 @@ router.post("/", requireServiceKey, asyncHandler(async (req, res) => {
 
       const volume = await getKeywordVolume(keyword); // null if Ads API unconfigured/failed
 
-      let serpResults = [];
+      let serpResults = { topResults: [], relatedQuestions: [] };
       try {
         serpResults = await checkKeywordSerp(keyword);
       } catch (serpErr) {
         // Shouldn't happen (checkKeywordSerp handles its own errors), but
         // don't let a SERP failure block idea creation either way.
         console.error("SERP check failed for keyword:", keyword, serpErr);
-        serpResults = [];
+        serpResults = { topResults: [], relatedQuestions: [] };
       }
 
       const id = crypto.randomUUID();
@@ -125,9 +125,12 @@ router.post("/:id/generate-draft", asyncHandler(async (req, res) => {
   }
 
   const item = JSON.parse(idea.item_json);
+  const serpData = normalizeSerpResults(idea.serp_results_json ? JSON.parse(idea.serp_results_json) : null);
 
   try {
-    const { blog, valid, issues } = await runBlogGraph(item);
+    const { blog, valid, issues } = await runBlogGraph(item, {
+      keywordData: { relatedQuestions: serpData.relatedQuestions },
+    });
 
     if (!blog) {
       return res.status(502).json({

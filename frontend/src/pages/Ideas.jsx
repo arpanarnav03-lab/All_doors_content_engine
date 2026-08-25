@@ -19,12 +19,14 @@ const CLASSIFICATION_STYLES = {
 };
 
 function SerpResults({ idea }) {
-  if (!idea.serpResults || idea.serpResults.length === 0) {
+  const topResults = (idea.serpResults && idea.serpResults.topResults) || [];
+
+  if (topResults.length === 0) {
     return <p className="text-xs text-slate-400 mt-2">No SERP data available for this keyword</p>;
   }
 
-  const total = idea.serpResults.length;
-  const blogCount = idea.serpResults.filter((r) => r.classification === "blog").length;
+  const total = topResults.length;
+  const blogCount = topResults.filter((r) => r.classification === "blog").length;
 
   return (
     <div className="border border-slate-200 rounded-lg p-3 mt-3 bg-slate-50">
@@ -32,7 +34,7 @@ function SerpResults({ idea }) {
         Top search results
       </p>
       <div className="space-y-2">
-        {idea.serpResults.map((result, i) => (
+        {topResults.map((result, i) => (
           <div key={i} className="flex items-start gap-2">
             <span
               className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${CLASSIFICATION_STYLES[result.classification] || CLASSIFICATION_STYLES.other}`}
@@ -49,6 +51,33 @@ function SerpResults({ idea }) {
       <p className="text-xs text-slate-500 mt-2">
         {blogCount} of {total} top results are blogs
       </p>
+    </div>
+  );
+}
+
+function PeopleAlsoAsk({ idea }) {
+  const relatedQuestions = (idea.serpResults && idea.serpResults.relatedQuestions) || [];
+
+  if (relatedQuestions.length === 0) {
+    return (
+      <p className="text-xs text-slate-400 mt-2">
+        No People Also Ask data available for this keyword
+      </p>
+    );
+  }
+
+  return (
+    <div className="border border-slate-200 rounded-lg p-3 mt-3 bg-slate-50">
+      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+        People Also Ask
+      </p>
+      <ul className="space-y-1 list-disc list-inside">
+        {relatedQuestions.map((q, i) => (
+          <li key={i} className="text-sm text-slate-700">
+            {q.question}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -117,6 +146,7 @@ export default function Ideas() {
               <p className="text-sm text-slate-500 mt-1 line-clamp-2">{idea.item.Summary}</p>
               <p className="text-xs text-slate-400 mt-2">{keywordLine(idea)}</p>
               <SerpResults idea={idea} />
+              <PeopleAlsoAsk idea={idea} />
             </div>
             <span className="text-xs text-slate-400 whitespace-nowrap pt-1">
               {new Date(idea.createdAt).toLocaleDateString("en-IN", {
