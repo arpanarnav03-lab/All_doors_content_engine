@@ -3,6 +3,7 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 
+const { ready } = require("./db");
 const ideasRouter = require("./routes/ideas");
 const draftsRouter = require("./routes/drafts");
 
@@ -28,5 +29,27 @@ app.get("*", (req, res, next) => {
   });
 });
 
+// Catches anything forwarded via next(err) - e.g. a transient DB/network
+// error from an asyncHandler-wrapped route. Must be defined last, with all
+// four params, for Express to treat it as an error-handling middleware.
+// Returns a clean error response to that one request instead of letting a
+// rejected promise crash the whole process.
+app.use((err, req, res, next) => {
+  console.error("Unhandled request error:", err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ ok: false, error: "Internal server error" });
+});
+
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+async function main() {
+  try {
+    await ready; // don't accept requests until tables exist
+  } catch (err) {
+    console.error("Database initialization failed, server not starting:", err.message || err);
+    process.exit(1);
+  }
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+
+main();

@@ -5,7 +5,13 @@
 function extractJsonBlock(text) {
   const cleaned = text.replace(/```json|```/g, "").trim();
   const match = cleaned.match(/\{[\s\S]*\}/);
-  return match ? match[0] : cleaned;
+  if (match) return match[0];
+
+  // Greedy match found nothing (no {...} pair at all) - try a non-greedy
+  // match as a fallback before giving up, in case stray text around a
+  // single brace pair is confusing the greedy pattern.
+  const lazyMatch = cleaned.match(/\{[\s\S]*?\}/);
+  return lazyMatch ? lazyMatch[0] : cleaned;
 }
 
 /**

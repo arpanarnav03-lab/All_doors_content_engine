@@ -99,6 +99,16 @@ function buildBlogPrompt(item, targetWords) {
     "  - Each table object: {\"caption\": \"short one-line caption\", \"headers\": " +
     "[\"...\", \"...\"], \"rows\": [[\"...\", \"...\"], [\"...\", \"...\"]]}.\n\n" +
     "Additional requirements:\n" +
+    "- ATTRIBUTION: where you state a fact or figure from the source, attribute it lightly " +
+    "and naturally where it reads well (e.g. 'according to the cabinet's announcement,' " +
+    "'official figures show,' 'the developer confirmed') rather than stating every fact as " +
+    "if it's common knowledge. Don't over-attribute every sentence, just enough that a " +
+    "reader can tell which claims are sourced versus analytical.\n" +
+    "- TIME-ANCHORING: for claims tied to a specific date, timeline, or figure that could " +
+    "change (construction start dates, prices, policy status), phrase them clearly relative " +
+    "to when this article was written (using the article's Date field: " + item.Date + ") " +
+    "so the article reads accurately even if read months later. Avoid phrasing that implies " +
+    "permanence for things that are time-bound.\n" +
     "- Write in Indian English throughout: use British/Indian spelling conventions " +
     "(e.g. 'organisation' not 'organization', 'colour' not 'color', 'realise' not " +
     "'realize', 'centre' not 'center', 'programme' not 'program', 'favour' not 'favor', " +
@@ -188,7 +198,18 @@ async function runBlogGraph(item, opts = {}) {
       prompt,
     });
 
-    const parsed = stripEmDashesDeep(JSON.parse(extractJsonBlock(rawText)));
+    let parsed;
+    try {
+      parsed = stripEmDashesDeep(JSON.parse(extractJsonBlock(rawText)));
+    } catch (parseErr) {
+      console.error(
+        `JSON parse failed on attempt ${attempt} for "${item.Headline}": ${parseErr.message}`
+      );
+      lastBlog = null;
+      lastIssues = [`Malformed JSON response: ${parseErr.message}`];
+      continue; // skip validation this iteration, let the loop retry
+    }
+
     const { valid, issues } = validateBlog(parsed);
 
     lastBlog = parsed;
@@ -202,8 +223,14 @@ async function runBlogGraph(item, opts = {}) {
 
   // Ran out of retries — return the last attempt anyway, flagged as invalid,
   // so a human reviewer sees it in the queue with a warning rather than it
-  // silently vanishing.
-  return { blog: lastBlog, valid: false, issues: lastIssues };
+  // silently vanishing. If every attempt failed to even parse, lastBlog is
+  // still null here - callers must handle that case rather than assume a
+  // blog object is always present.
+  return {
+    blog: lastBlog,
+    valid: false,
+    issues: lastBlog ? lastIssues : ["All generation attempts returned malformed JSON"],
+  };
 }
 
 module.exports = { runBlogGraph, buildBlogPrompt, validateBlog };

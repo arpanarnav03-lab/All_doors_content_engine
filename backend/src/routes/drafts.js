@@ -1,6 +1,7 @@
 const express = require("express");
-const db = require("../db");
+const { db } = require("../db");
 const { sendToAppsScript } = require("../services/appsScriptClient");
+const asyncHandler = require("../utils/asyncHandler");
 
 const router = express.Router();
 
@@ -18,36 +19,43 @@ function rowToDraft(row) {
 }
 
 // GET /api/drafts?status=pending  (default: pending)
-router.get("/", (req, res) => {
+router.get("/", asyncHandler(async (req, res) => {
   const status = req.query.status || "pending";
-  const rows = db
-    .prepare("SELECT * FROM drafts WHERE status = ? ORDER BY created_at DESC")
-    .all(status);
-  res.json(rows.map(rowToDraft));
-});
+  const result = await db.execute({
+    sql: "SELECT * FROM drafts WHERE status = ? ORDER BY created_at DESC",
+    args: [status],
+  });
+  res.json(result.rows.map(rowToDraft));
+}));
 
 // GET /api/drafts/stats
-router.get("/stats", (req, res) => {
-  const pending = db.prepare("SELECT COUNT(*) c FROM drafts WHERE status='pending'").get().c;
-  const approvedToday = db
-    .prepare("SELECT COUNT(*) c FROM drafts WHERE status='approved' AND date(approved_at) = date('now')")
-    .get().c;
-  const totalThisWeek = db
-    .prepare("SELECT COUNT(*) c FROM drafts WHERE created_at >= datetime('now', '-7 days')")
-    .get().c;
-  res.json({ pending, approvedToday, totalThisWeek });
-});
+router.get("/stats", asyncHandler(async (req, res) => {
+  const pendingResult = await db.execute("SELECT COUNT(*) c FROM drafts WHERE status='pending'");
+  const approvedTodayResult = await db.execute(
+    "SELECT COUNT(*) c FROM drafts WHERE status='approved' AND date(approved_at) = date('now')"
+  );
+  const totalThisWeekResult = await db.execute(
+    "SELECT COUNT(*) c FROM drafts WHERE created_at >= datetime('now', '-7 days')"
+  );
+  res.json({
+    pending: pendingResult.rows[0].c,
+    approvedToday: approvedTodayResult.rows[0].c,
+    totalThisWeek: totalThisWeekResult.rows[0].c,
+  });
+}));
 
 // GET /api/drafts/:id
-router.get("/:id", (req, res) => {
-  const row = db.prepare("SELECT * FROM drafts WHERE id = ?").get(req.params.id);
+router.get("/:id", asyncHandler(async (req, res) => {
+  const result = await db.execute({ sql: "SELECT * FROM drafts WHERE id = ?", args: [req.params.id] });
+  const row = result.rows[0];
   if (!row) return res.status(404).json({ error: "not found" });
   res.json(rowToDraft(row));
-});
+}));
 
 // PATCH /api/drafts/:id  - save edits without approving
-router.patch("/:id", (req, res) => {
-  const row = db.prepare("SELECT * FROM drafts WHERE id = ?").get(req.params.id);
+router.patch("/:id", asyncHandler(async (req, res) => {
+  const result = await db.execute({ sql: "SELECT * FROM drafts WHERE id = ?", args: [req.params.id] });
+  const row = result.rows[0];
   if (!row) return res.status(404).json({ error: "not found" });
 
   const current = JSON.parse(row.final_blog_json);
@@ -59,43 +67,46 @@ router.patch("/:id", (req, res) => {
     body: body ?? current.body,
   };
 
-  db.prepare("UPDATE drafts SET final_blog_json = ? WHERE id = ?").run(
-    JSON.stringify(updated),
-    req.params.id
-  );
+  await db.execute({
+    sql: "UPDATE drafts SET final_blog_json = ? WHERE id = ?",
+    args: [JSON.stringify(updated), req.params.id],
+  });
 
   res.json({ ok: true, blog: updated });
-});
+}));
 
 // POST /api/drafts/:id/approve
-router.post("/:id/approve", async (req, res) => {
-  const row = db.prepare("SELECT * FROM drafts WHERE id = ?").get(req.params.id);
+router.post("/:id/approve", asyncHandler(async (req, res) => {
+  const result = await db.execute({ sql: "SELECT * FROM drafts WHERE id = ?", args: [req.params.id] });
+  const row = result.rows[0];
   if (!row) return res.status(404).json({ error: "not found" });
 
   const item = JSON.parse(row.item_json);
   const blog = JSON.parse(row.final_blog_json);
 
   try {
-    const result = await sendToAppsScript({ action: "createDraft", item, blog });
+    const approveResult = await sendToAppsScript({ action: "createDraft", item, blog });
 
-    db.prepare(
-      `UPDATE drafts SET status = 'approved', blog_doc_url = ?, approved_at = datetime('now') WHERE id = ?`
-    ).run(result.blogDocUrl || "", req.params.id);
+    await db.execute({
+      sql: `UPDATE drafts SET status = 'approved', blog_doc_url = ?, approved_at = datetime('now') WHERE id = ?`,
+      args: [approveResult.blogDocUrl || "", req.params.id],
+    });
 
-    res.json({ ok: true, blogDocUrl: result.blogDocUrl });
+    res.json({ ok: true, blogDocUrl: approveResult.blogDocUrl });
   } catch (err) {
     console.error("Approve failed:", err);
     res.status(500).json({ ok: false, error: String(err.message || err) });
   }
-});
+}));
 
 // POST /api/drafts/:id/reject
-router.post("/:id/reject", (req, res) => {
-  const row = db.prepare("SELECT * FROM drafts WHERE id = ?").get(req.params.id);
+router.post("/:id/reject", asyncHandler(async (req, res) => {
+  const result = await db.execute({ sql: "SELECT * FROM drafts WHERE id = ?", args: [req.params.id] });
+  const row = result.rows[0];
   if (!row) return res.status(404).json({ error: "not found" });
 
-  db.prepare("UPDATE drafts SET status = 'rejected' WHERE id = ?").run(req.params.id);
+  await db.execute({ sql: "UPDATE drafts SET status = 'rejected' WHERE id = ?", args: [req.params.id] });
   res.json({ ok: true });
-});
+}));
 
 module.exports = router;

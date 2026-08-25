@@ -1,6 +1,6 @@
 const { GoogleAdsApi } = require("google-ads-api");
 const crypto = require("crypto");
-const db = require("../db");
+const { db } = require("../db");
 
 const REQUIRED_ENV = [
   "GOOGLE_ADS_DEVELOPER_TOKEN",
@@ -39,13 +39,13 @@ const CACHE_TTL_DAYS = 14;
 // buckets as "likely bucketed" is a heuristic, not a guaranteed signal.
 const KNOWN_LOW_SPEND_BUCKETS = [0, 10, 100, 1000, 10000, 100000, 1000000, 10000000];
 
-function getCachedVolume(keyword) {
-  const row = db
-    .prepare(
-      `SELECT search_volume, competition, is_bucketed FROM live_keyword_volume
-       WHERE keyword = ? AND checked_at >= datetime('now', ?)`
-    )
-    .get(keyword, `-${CACHE_TTL_DAYS} days`);
+async function getCachedVolume(keyword) {
+  const result = await db.execute({
+    sql: `SELECT search_volume, competition, is_bucketed FROM live_keyword_volume
+          WHERE keyword = ? AND checked_at >= datetime('now', ?)`,
+    args: [keyword, `-${CACHE_TTL_DAYS} days`],
+  });
+  const row = result.rows[0];
   if (!row) return null;
   return {
     search_volume: row.search_volume,
@@ -95,21 +95,22 @@ async function fetchLiveVolume(keyword) {
 async function getKeywordVolume(keyword) {
   if (!keyword) return null;
 
-  const cached = getCachedVolume(keyword);
+  const cached = await getCachedVolume(keyword);
   if (cached) return cached;
 
   const live = await fetchLiveVolume(keyword);
   if (!live) return null;
 
-  db.prepare(
-    `INSERT INTO live_keyword_volume (id, keyword, search_volume, competition, is_bucketed, checked_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now'))
-     ON CONFLICT(keyword) DO UPDATE SET
-       search_volume = excluded.search_volume,
-       competition = excluded.competition,
-       is_bucketed = excluded.is_bucketed,
-       checked_at = excluded.checked_at`
-  ).run(crypto.randomUUID(), keyword, live.search_volume, live.competition, live.is_bucketed ? 1 : 0);
+  await db.execute({
+    sql: `INSERT INTO live_keyword_volume (id, keyword, search_volume, competition, is_bucketed, checked_at)
+          VALUES (?, ?, ?, ?, ?, datetime('now'))
+          ON CONFLICT(keyword) DO UPDATE SET
+            search_volume = excluded.search_volume,
+            competition = excluded.competition,
+            is_bucketed = excluded.is_bucketed,
+            checked_at = excluded.checked_at`,
+    args: [crypto.randomUUID(), keyword, live.search_volume, live.competition, live.is_bucketed ? 1 : 0],
+  });
 
   return live;
 }
