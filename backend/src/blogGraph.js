@@ -3,7 +3,7 @@ const { extractJsonBlock, stripEmDashesDeep } = require("./utils/text");
 
 /**
  * Builds the exact prompt used by Apps Script's generateBlogPost(), so
- * output shape/quality stays consistent with what you had before.
+ * output shape/quality stays consistent with what we had before.
  */
 function buildBlogPrompt(item, targetWords, keywordData) {
   const relatedQuestions = (keywordData && keywordData.relatedQuestions) || [];
@@ -51,6 +51,15 @@ function buildBlogPrompt(item, targetWords, keywordData) {
     "the exact keyword phrase more than once in the same paragraph, and never force it " +
     "into a sentence where it reads unnaturally - rephrase the sentence instead of " +
     "dropping the keyword in verbatim if it doesn't fit grammatically.\n\n" +
+    "SEMANTIC COVERAGE: beyond the primary and secondary keywords, naturally weave in 3-5 " +
+    "closely related terms or concepts that a comprehensive article on this topic would " +
+    "organically include (e.g. for a developer project launch: terms like 'revenue " +
+    "potential', 'premium segment', 'per-acre pricing', 'project pipeline' as relevant to " +
+    "this specific article's actual content - choose terms that genuinely fit THIS article, " +
+    "don't force a generic list). These should emerge naturally from writing the article " +
+    "thoroughly and accurately, not from mechanically inserting a checklist of terms - if " +
+    "the article's honest, thorough coverage of the topic doesn't naturally include a " +
+    "related term, don't force it in artificially.\n\n" +
     "FACTUAL GROUNDING (critical): facts, figures, names, dates, and quotes from the source " +
     "are NOT copyrighted and MUST be used, stated directly in your own sentence structure - " +
     "only copying the source's exact phrasing is prohibited. Do not omit concrete details " +
@@ -129,14 +138,20 @@ function buildBlogPrompt(item, targetWords, keywordData) {
     "this topic's keyword: " + (relatedQuestions && relatedQuestions.length > 0 ?
     relatedQuestions.map(q => q.question).join(" | ") : "none available for this keyword") +
     "\n" +
-    "Where any of these real questions genuinely fit this article's content, use them as " +
-    "FAQ questions, matching their exact or near-exact phrasing rather than rewriting them - " +
-    "real searched phrasing is more likely to match what readers actually search for. Fill " +
-    "any remaining FAQ slots with additional relevant questions based on the article's " +
-    "content if fewer than 6 of the provided questions are relevant or none were provided. " +
-    "Still apply the NO CONTENT DUPLICATION rule below to these questions same as any other " +
-    "FAQ - a real searched question is still skipped if its answer would just restate body " +
-    "content already covered.\n\n" +
+    "STRICT RELEVANCE TEST: only use a provided question as an FAQ if it is SPECIFICALLY " +
+    "about this article's actual subject - the named project, developer, location, policy, " +
+    "or event this article covers - not just broadly topically related to the general " +
+    "keyword category. For example, if this article is about one specific developer's " +
+    "project, a question about a DIFFERENT developer's projects, or about 'upcoming " +
+    "projects in Bangalore' generally, fails this test even though it's related to the same " +
+    "broad keyword - do not include it. A question passes this test only if answering it " +
+    "requires information that is actually in or directly inferable from THIS article's " +
+    "content, not general market knowledge. Apply this test to each provided question " +
+    "individually - it is expected and fine to use zero, one, or a few of the provided " +
+    "questions if most fail this test, rather than including irrelevant ones just because " +
+    "they were provided. Fill any remaining FAQ slots (aim for 6-8 total, fewer is fine per " +
+    "the NO CONTENT DUPLICATION rule below) with questions you construct yourself that are " +
+    "specific to this article's actual subject.\n\n" +
     "NO CONTENT DUPLICATION BETWEEN BODY AND FAQs: before finalizing your FAQs, check " +
     "every fact, figure, or explanation you plan to include against what the body sections " +
     "above already cover. If an FAQ question's answer would just restate something already " +
@@ -212,9 +227,16 @@ function buildBlogPrompt(item, targetWords, keywordData) {
     "- Never use em dashes (—) or en dashes (–) anywhere in the headline, meta " +
     "description, or body - use commas, periods, or parentheses instead. This applies " +
     "to every sentence, not just some.\n\n" +
+    "META TITLE: write a separate meta title distinct from the H1 headline, optimized " +
+    "specifically for search engine result click-through rather than on-page readability. " +
+    "Keep it between 55-60 characters including spaces. Include the primary keyword " +
+    "naturally near the beginning if it isn't already prominent in the H1 headline. The " +
+    "meta title can restate or lightly rephrase the H1 if the H1 already works well for " +
+    "search (e.g. already keyword-forward and under 60 characters), but should be written " +
+    "as its own field, not just a copy-paste of the headline field.\n\n" +
     "Respond ONLY with JSON in this exact shape, no other text, no markdown code fences. " +
     "Omit \"tables\" entirely (or use an empty array) if no table is warranted:\n" +
-    '{"headline": "...", "metaDescription": "one sentence, under 25 words", "body": "...", ' +
+    '{"headline": "...", "metaTitle": "...", "metaDescription": "one sentence, under 25 words", "body": "...", ' +
     '"tables": [{"caption": "...", "headers": ["..."], "rows": [["..."]]}]}'
   );
 }

@@ -59,10 +59,11 @@ router.patch("/:id", asyncHandler(async (req, res) => {
   if (!row) return res.status(404).json({ error: "not found" });
 
   const current = JSON.parse(row.final_blog_json);
-  const { headline, metaDescription, body } = req.body;
+  const { headline, metaTitle, metaDescription, body } = req.body;
   const updated = {
     ...current,
     headline: headline ?? current.headline,
+    metaTitle: metaTitle ?? current.metaTitle,
     metaDescription: metaDescription ?? current.metaDescription,
     body: body ?? current.body,
   };

@@ -9,6 +9,7 @@ export default function Review() {
 
   const [draft, setDraft] = useState(null);
   const [headline, setHeadline] = useState("");
+  const [metaTitle, setMetaTitle] = useState("");
   const [metaDescription, setMetaDescription] = useState("");
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
@@ -19,6 +20,7 @@ export default function Review() {
     api.getDraft(id).then((d) => {
       setDraft(d);
       setHeadline(d.blog.headline || "");
+      setMetaTitle(d.blog.metaTitle || "");
       setMetaDescription(d.blog.metaDescription || "");
       setBody(d.blog.body || "");
     });
@@ -33,7 +35,7 @@ export default function Review() {
 
   async function handleSave() {
     setSaving(true);
-    await api.saveDraft(id, { headline, metaDescription, body });
+    await api.saveDraft(id, { headline, metaTitle, metaDescription, body });
     setSaving(false);
     setSavedMsg("Saved");
     setTimeout(() => setSavedMsg(""), 1500);
@@ -41,7 +43,7 @@ export default function Review() {
 
   async function handleApprove() {
     setApproving(true);
-    await api.saveDraft(id, { headline, metaDescription, body });
+    await api.saveDraft(id, { headline, metaTitle, metaDescription, body });
     try {
       await api.approveDraft(id);
       navigate("/queue");
@@ -80,6 +82,20 @@ export default function Review() {
               onChange={(e) => setHeadline(e.target.value)}
               className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Meta Title (for search results, separate from the H1 headline above)
+            </label>
+            <input
+              value={metaTitle}
+              onChange={(e) => setMetaTitle(e.target.value)}
+              className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            <p className={`text-xs mt-1 ${metaTitle.length > 60 ? "text-amber-600" : "text-slate-400"}`}>
+              {metaTitle.length} / 60 characters
+            </p>
           </div>
 
           <div>
