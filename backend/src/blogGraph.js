@@ -87,12 +87,19 @@ function buildBlogPrompt(item, targetWords, keywordData) {
     "points, each a short punchy phrase (not full sentences). Close with one sentence " +
     "tying the bullets back to the main keyword/topic.\n\n" +
     "3. \"## How [Topic] Works\" or \"## What This Means For [Locality/Buyers]\" - open with " +
-    "a framing paragraph, then break into 3-5 sub-topics. For EACH sub-topic, use a genuine " +
-    "H3 sub-heading marked with \"### \" on its own line (e.g. \"### Timeline and " +
-    "approvals\"), immediately followed by 2-4 sentences of explanation as a normal " +
-    "paragraph below it. Keep each H3 sub-heading short (3-6 words), stating the sub-topic " +
-    "directly. Within each sub-topic's explanation paragraph, lead with the direct answer " +
-    "or key point for that sub-topic FIRST, then explain the reasoning or context after. " +
+    "a framing paragraph, then cover 3-5 distinct angles or sub-topics. " +
+    "Within these body sections, write as flowing paragraphs WITHOUT H3 sub-headings by " +
+    "default. Only use an H3 sub-heading (marked \"### \") within a body section if that " +
+    "specific section is presenting a genuine list of parallel, comparable items - such as " +
+    "distinct benefits, advantages, impacts on different stakeholder groups, or clearly " +
+    "enumerable sub-topics that a reader would scan rather than read linearly. Most " +
+    "explanatory or narrative sections (what happened, why it matters, how a mechanism " +
+    "works, background context) should NOT use H3s at all - write them as connected " +
+    "paragraphs instead. Do not add an H3 to every section out of habit; H3s should feel " +
+    "like a deliberate, occasional formatting choice for scannable lists, not a default " +
+    "pattern repeated in every section.\n\n" +
+    "Within each angle covered, lead with the direct answer " +
+    "or key point FIRST, then explain the reasoning or context after. " +
     "Do not build up to the point through background before stating it - state it, then " +
     "support it. This applies to the Who Benefits section too: each group's paragraph " +
     "(below its H3) should open by stating the specific benefit directly, not building " +
@@ -138,20 +145,24 @@ function buildBlogPrompt(item, targetWords, keywordData) {
     "this topic's keyword: " + (relatedQuestions && relatedQuestions.length > 0 ?
     relatedQuestions.map(q => q.question).join(" | ") : "none available for this keyword") +
     "\n" +
-    "STRICT RELEVANCE TEST: only use a provided question as an FAQ if it is SPECIFICALLY " +
-    "about this article's actual subject - the named project, developer, location, policy, " +
-    "or event this article covers - not just broadly topically related to the general " +
-    "keyword category. For example, if this article is about one specific developer's " +
-    "project, a question about a DIFFERENT developer's projects, or about 'upcoming " +
-    "projects in Bangalore' generally, fails this test even though it's related to the same " +
-    "broad keyword - do not include it. A question passes this test only if answering it " +
-    "requires information that is actually in or directly inferable from THIS article's " +
-    "content, not general market knowledge. Apply this test to each provided question " +
-    "individually - it is expected and fine to use zero, one, or a few of the provided " +
-    "questions if most fail this test, rather than including irrelevant ones just because " +
-    "they were provided. Fill any remaining FAQ slots (aim for 6-8 total, fewer is fine per " +
-    "the NO CONTENT DUPLICATION rule below) with questions you construct yourself that are " +
-    "specific to this article's actual subject.\n\n" +
+    "STRICT RELEVANCE TEST: only use a provided question as an FAQ if answering it requires " +
+    "specific information stated in or directly inferable from THIS article's actual body " +
+    "content above - not just because the question shares a keyword or general topic " +
+    "category with this article. Reject any question about a DIFFERENT named entity than " +
+    "the one this article is about (a different project, different flyover, different " +
+    "developer, different policy) even if it mentions the same city or general subject " +
+    "matter. For example, if this article is specifically about a 32-year toll cap policy " +
+    "on Bengaluru's first toll flyover, reject questions like 'What is the longest flyover " +
+    "in India?' (different topic entirely, just shares the word flyover), 'What happened to " +
+    "Hebbal flyover?' (a different, unrelated flyover project), or 'Has Ejipura flyover " +
+    "opened?' (another unrelated flyover) - none of these can be answered using this " +
+    "article's actual content, they only surfaced because they share a keyword category. " +
+    "A provided question only passes if you could write a genuine, specific, non-generic " +
+    "answer to it using facts actually present in this article's body. When in doubt, " +
+    "REJECT the question rather than include it - it is far better to write zero " +
+    "PAA-sourced FAQs for an article than to include even one irrelevant question. Fill any " +
+    "FAQ slots not covered by passing PAA questions with questions you construct yourself " +
+    "that are specific to this article's actual subject.\n\n" +
     "NO CONTENT DUPLICATION BETWEEN BODY AND FAQs: before finalizing your FAQs, check " +
     "every fact, figure, or explanation you plan to include against what the body sections " +
     "above already cover. If an FAQ question's answer would just restate something already " +
@@ -212,6 +223,31 @@ function buildBlogPrompt(item, targetWords, keywordData) {
     "second sentence about it.\n" +
     "  After the first explained use, use the short form/acronym freely for the rest " +
     "of the article without re-explaining it.\n" +
+    "READABILITY: write for a Grade 6-8 reading level throughout - this applies to every " +
+    "section including the opening, body, Who Benefits, Conclusion, and FAQs. Concretely, " +
+    "this means:\n" +
+    "  - Average sentence length should be roughly 12-18 words. Break up longer sentences " +
+    "into two shorter ones rather than joining ideas with multiple commas or subordinate " +
+    "clauses. A sentence like 'The operator must recoup its investment, including " +
+    "construction costs and a reasonable return, within 32 years instead of the 40 to 50 " +
+    "year windows common elsewhere' should instead become two sentences: 'The operator has " +
+    "32 years to recoup its investment, including construction costs and a profit margin. " +
+    "That is shorter than the 40 to 50 year windows common in other cities.'\n" +
+    "  - Prefer common, everyday words over formal or Latinate alternatives where a simpler " +
+    "word means the same thing: use 'get back' instead of 'recoup', 'yearly income goal' " +
+    "instead of 'annuity-style income streams', 'protects buyers' instead of " +
+    "'consumer-protective', 'sets an example' instead of 'sets a regulatory benchmark'. " +
+    "Keep precise technical or financial terms only where no simpler substitute exists, and " +
+    "briefly explain them per the existing EXPLAIN UNCOMMON TERMS rule.\n" +
+    "  - Keep paragraphs short: 2-4 sentences each. Break up any paragraph that runs longer " +
+    "than that into two paragraphs.\n" +
+    "  - Use active voice by default ('the cabinet approved the project' not 'the project " +
+    "was approved by the cabinet').\n" +
+    "  - Avoid stacking multiple ideas into one sentence with semicolons or multiple " +
+    "commas - one main idea per sentence is the default.\n" +
+    "This readability requirement does not mean the content should be dumbed down or lose " +
+    "nuance - the same facts, inferences, and analysis should still be present, just " +
+    "expressed in shorter, plainer sentences rather than complex ones.\n\n" +
     "- Roughly " + targetWords + " words total, including opening definition and FAQs.\n" +
     "- Tone: authoritative and reference-like in definitional sections, conversational " +
     "and direct ('you') in the buyer-facing sections - not stiff throughout, but not " +
