@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: alldoors-content-engine
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: CLAUDE_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        sync: false
+      - key: CLAUDE_MODEL_BLOG
+        sync: false
+      - key: NODE_APP_SECRET
+        sync: false
+      - key: APPS_SCRIPT_WEBAPP_URL
+        sync: false
+      - key: APPS_SCRIPT_SHARED_SECRET
+        sync: false
+      - key: SERPAPI_KEY
+        sync: false
+      - key: GOOGLE_ADS_DEVELOPER_TOKEN
+        sync: false
+      - key: GOOGLE_ADS_CLIENT_ID
+        sync: false
+      - key: GOOGLE_ADS_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_ADS_REFRESH_TOKEN
+        sync: false
+      - key: GOOGLE_ADS_CUSTOMER_ID
+        sync: false
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
