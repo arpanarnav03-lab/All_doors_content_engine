@@ -8,6 +8,10 @@ services:
     envVars:
       - key: PORT
         value: "8080"
+      - key: CLAUDE_MAX_TOKENS_BLOG
+        value: "8000"
+      - key: BLOG_TARGET_WORDS
+        value: "800"
       - key: CLAUDE_API_KEY
         sync: false
       - key: CLAUDE_MODEL

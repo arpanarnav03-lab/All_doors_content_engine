@@ -442,7 +442,12 @@ function validateBlog(blog) {
  */
 async function runBlogGraph(item, opts = {}) {
   const targetWords = opts.targetWords || process.env.BLOG_TARGET_WORDS || 800;
-  const maxRetries = opts.maxRetries ?? 1;
+  // 2 (3 total attempts) rather than 1: thinking-token usage on this
+  // prompt is highly variable (observed 82-1505 tokens across identical
+  // calls against a 6000-token budget) as the prompt has grown, so an
+  // extra attempt meaningfully reduces the odds of every attempt
+  // unluckily failing back-to-back.
+  const maxRetries = opts.maxRetries ?? 2;
   const keywordData = opts.keywordData || {};
 
   let lastBlog = null;
