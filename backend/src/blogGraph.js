@@ -1,5 +1,9 @@
 const { callClaude } = require("./services/claude");
 const { extractJsonBlock, stripEmDashesDeep } = require("./utils/text");
+// text-readability's CJS build only exposes its methods under .default,
+// not on the module object itself - require(...).fleschKincaidGrade is
+// undefined; verified directly against the installed package.
+const rs = require("text-readability").default;
 
 /**
  * Builds the exact prompt used by Apps Script's generateBlogPost(), so
@@ -294,6 +298,89 @@ function validateBlog(blog) {
   if (/[—–]/.test(blog.body) || /[—–]/.test(blog.headline || "")) {
     issues.push("Contains em dash or en dash");
   }
+
+  // READABILITY CHECK: 6-8 is the target Flesch-Kincaid grade for this
+  // audience, but real estate/policy vocabulary reasonably pushes scores
+  // a bit higher - 10 is a hard ceiling that only catches genuinely dense
+  // drafts (e.g. the 16-17 grade level example that prompted this check)
+  // without over-flagging reasonable technical content.
+  const gradeLevel = rs.fleschKincaidGrade(blog.body);
+  if (gradeLevel > 10) {
+    issues.push(
+      `Readability too high: Flesch-Kincaid grade ${gradeLevel.toFixed(1)} (target: 6-8, hard ceiling: 10)`
+    );
+  }
+
+  // H3 CONTEXT CHECK: H3s should only appear inside a genuine
+  // benefits/pros-cons/list-style H2 section (per the prompt's own
+  // instruction to avoid H3s as a default formatting habit). Skip
+  // entirely if the body has no H3s at all - nothing to flag.
+  if (blog.body.includes("### ")) {
+    const h2HeadingRegex = /^## (.+)$/gm;
+    const headings = [];
+    const startIndices = [];
+    let h2Match;
+    while ((h2Match = h2HeadingRegex.exec(blog.body)) !== null) {
+      headings.push(h2Match[1].trim());
+      startIndices.push(h2Match.index);
+    }
+
+    const allowedKeywords = ["who benefits", "benefits", "advantages", "pros", "cons"];
+    startIndices.forEach((startIdx, i) => {
+      const endIdx = i + 1 < startIndices.length ? startIndices[i + 1] : blog.body.length;
+      const sectionText = blog.body.slice(startIdx, endIdx);
+      if (!sectionText.includes("### ")) return;
+
+      const headingLower = headings[i].toLowerCase();
+      const isAllowed = allowedKeywords.some((kw) => headingLower.includes(kw));
+      if (!isAllowed) {
+        issues.push(`H3 sub-headings found outside a benefits/list context, in section: "${headings[i]}"`);
+      }
+    });
+  }
+
+  // FAQ RELEVANCE CHECK: heuristic, not a perfect check - meant to catch
+  // obviously off-topic PAA-sourced questions (a different named entity
+  // entirely) without another LLM call. Flags a question only if NONE of
+  // its significant words (proper nouns, numbers, distinctive terms -
+  // common words filtered out) appear anywhere earlier in the body.
+  const faqIndex = blog.body.indexOf("## FAQs");
+  if (faqIndex !== -1) {
+    const afterFaqStart = faqIndex + "## FAQs".length;
+    const nextH2Match = blog.body.slice(afterFaqStart).match(/\n## /);
+    const faqSectionEnd = nextH2Match ? afterFaqStart + nextH2Match.index : blog.body.length;
+    const faqSection = blog.body.slice(afterFaqStart, faqSectionEnd);
+    const bodyBeforeFaqs = blog.body.slice(0, faqIndex).toLowerCase();
+
+    const commonWords = new Set([
+      "what", "is", "are", "the", "a", "an", "how", "why", "when", "where", "who",
+      "will", "does", "do", "this", "that", "in", "on", "for", "of", "to", "and",
+      "or", "can", "could", "would", "should", "it", "its", "be", "been", "being",
+      "with", "from", "by", "as", "if", "not", "no", "yes", "has", "have", "had", "which",
+    ]);
+
+    const questionLines = faqSection
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.endsWith("?"));
+
+    questionLines.forEach((question) => {
+      const words = question.replace(/[?.,]/g, "").split(/\s+/);
+      const significantWords = words.filter((w) => {
+        const lower = w.toLowerCase();
+        if (commonWords.has(lower)) return false;
+        if (w.length <= 3) return false;
+        return /[A-Za-z0-9]/.test(w);
+      });
+
+      const hasOverlap = significantWords.some((w) => bodyBeforeFaqs.includes(w.toLowerCase()));
+
+      if (significantWords.length > 0 && !hasOverlap) {
+        issues.push(`Possibly irrelevant FAQ (no shared terms with article body): "${question}"`);
+      }
+    });
+  }
+
   return { valid: issues.length === 0, issues };
 }
 
