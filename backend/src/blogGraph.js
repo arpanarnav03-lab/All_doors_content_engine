@@ -1,5 +1,6 @@
 const { callClaude } = require("./services/claude");
 const { extractJsonBlock, stripEmDashesDeep } = require("./utils/text");
+const { critiqueEditorial } = require("./services/editorialCritique");
 // text-readability's CJS build only exposes its methods under .default,
 // not on the module object itself - require(...).fleschKincaidGrade is
 // undefined; verified directly against the installed package.
@@ -90,7 +91,14 @@ function buildBlogPrompt(item, targetWords, keywordData) {
     "short bolded lead-in line like 'Key reasons this matters:' followed by 4-6 bullet " +
     "points, each a short punchy phrase (not full sentences). Close with one sentence " +
     "tying the bullets back to the main keyword/topic.\n\n" +
-    "3. \"## How [Topic] Works\" or \"## What This Means For [Locality/Buyers]\" - open with " +
+    "3. \"## How [Topic] Works\" or \"## What This Means For [Locality/Buyers]\" - " +
+    "HEADING NAMING: when a section primarily discusses the article's actual subject and " +
+    "only uses another locality or project as a brief comparison point, name the heading " +
+    "after the actual subject, not the comparison entity. For example, use '## [Topic] " +
+    "Impact on Property Prices' rather than '## What This Means for [Comparison Locality]' " +
+    "if the section's real content is about the topic itself, with the comparison locality " +
+    "appearing only as supporting context within it.\n\n" +
+    "Open with " +
     "a framing paragraph, then cover 3-5 distinct angles or sub-topics. " +
     "Within these body sections, write as flowing paragraphs WITHOUT H3 sub-headings by " +
     "default. Only use an H3 sub-heading (marked \"### \") within a body section if that " +
@@ -132,11 +140,25 @@ function buildBlogPrompt(item, targetWords, keywordData) {
     "\"### Investors\" or \"### Homeowners near [locality]\"), immediately followed by 2-3 " +
     "sentences explaining the specific benefit or impact for that group, grounded in the " +
     "article's actual facts.\n\n" +
-    "7. \"## Conclusion\" - 2-3 short paragraphs (not one dense block): first restates the " +
-    "core fact/definition and why it matters, second connects it to the bigger picture " +
-    "(the locality's or Bangalore's broader trajectory), third gives a clear, direct " +
-    "closing takeaway sentence.\n\n" +
-    "8. \"## FAQs\" - 6-8 question-and-answer pairs a Bangalore homebuyer/investor " +
+    "7. \"## How Alldoors Can Help You Evaluate [Topic] Properties\" - a short, concrete " +
+    "section (2-3 short paragraphs) explaining how a reader can use Alldoors specifically " +
+    "to act on this article's topic - e.g. exploring properties in the relevant localities, " +
+    "comparing projects, or assessing connectivity and infrastructure factors beyond just " +
+    "proximity to the topic itself. End with a direct, specific call to action (e.g. " +
+    "'Explore properties on Alldoors and compare your options before making a decision.') " +
+    "rather than a generic sign-off. This should read as genuinely useful next-step " +
+    "guidance, not a hard sales pitch - keep it grounded in what the article actually " +
+    "covered.\n\n" +
+    "8. \"## Conclusion\" - 2-3 short paragraphs that do NOT restate the opening paragraph's " +
+    "facts and framing. Instead: first, give the single most useful way to evaluate this " +
+    "topic at a practical level (e.g. 'the most useful way to assess this is at the " +
+    "property level, not the corridor level' or similar framing specific to this article's " +
+    "topic); second, connect it to the bigger picture briefly; third, end with a concrete, " +
+    "specific action the reader can actually take (e.g. 'check your address against the " +
+    "nearest named station' or an equivalent specific action for this article's topic) - " +
+    "NOT a generic instruction like 'watch progress closely' or 'keep an eye on " +
+    "developments,' which give the reader nothing concrete to do.\n\n" +
+    "9. \"## FAQs\" - 6-8 question-and-answer pairs a Bangalore homebuyer/investor " +
     "searching about this topic would realistically ask, ordered from most basic " +
     "('What is [topic]?') to more specific/practical. Format each pair as the question " +
     "on its own line immediately followed by a 2-4 sentence answer (denser and more " +
@@ -167,6 +189,13 @@ function buildBlogPrompt(item, targetWords, keywordData) {
     "PAA-sourced FAQs for an article than to include even one irrelevant question. Fill any " +
     "FAQ slots not covered by passing PAA questions with questions you construct yourself " +
     "that are specific to this article's actual subject.\n\n" +
+    "AVOID CROSS-SECTION REPETITION: headline figures (total length, total cost, total " +
+    "station count, or other defining numbers) should be stated in full once, in the " +
+    "opening or the section where they are first relevant, then referenced briefly " +
+    "afterward (e.g. 'the 44.65 km line' or 'the project') rather than fully restated with " +
+    "all units and context every time. Check each body section against earlier sections " +
+    "before finalizing - if a section repeats a headline figure with its full context " +
+    "again, trim it to a brief reference instead.\n\n" +
     "NO CONTENT DUPLICATION BETWEEN BODY AND FAQs: before finalizing your FAQs, check " +
     "every fact, figure, or explanation you plan to include against what the body sections " +
     "above already cover. If an FAQ question's answer would just restate something already " +
@@ -190,13 +219,29 @@ function buildBlogPrompt(item, targetWords, keywordData) {
     "\"[TABLE:1]\" as its own paragraph, separated by blank lines, at the point in the " +
     "body where the table should appear.\n" +
     "  - Each table object: {\"caption\": \"short one-line caption\", \"headers\": " +
-    "[\"...\", \"...\"], \"rows\": [[\"...\", \"...\"], [\"...\", \"...\"]]}.\n\n" +
+    "[\"...\", \"...\"], \"rows\": [[\"...\", \"...\"], [\"...\", \"...\"]]}.\n" +
+    "  - TABLE PRECISION: avoid using vague qualifiers like 'Approx.' across most or all " +
+    "cells in a comparison table without any precise figures - if exact numbers are " +
+    "available in the source data, use them; only mark a specific cell as approximate if " +
+    "that specific figure is genuinely uncertain, not as a default hedge across the whole " +
+    "table. Where comparing two projects, prioritize including whichever single metric is " +
+    "most directly actionable for a reader's decision (such as elapsed time from approval " +
+    "to operational status, since that tells a buyer how long a similar project " +
+    "realistically took) over purely descriptive stats, if the source data supports it.\n\n" +
     "Additional requirements:\n" +
     "- ATTRIBUTION: where you state a fact or figure from the source, attribute it lightly " +
     "and naturally where it reads well (e.g. 'according to the cabinet's announcement,' " +
     "'official figures show,' 'the developer confirmed') rather than stating every fact as " +
     "if it's common knowledge. Don't over-attribute every sentence, just enough that a " +
     "reader can tell which claims are sourced versus analytical.\n" +
+    "- HEDGE PRICE/APPRECIATION CLAIMS: never state that a property or area will see price " +
+    "appreciation as a likely or expected outcome without an explicit caveat. Every claim " +
+    "about future price movement must be qualified with the factors it actually depends on " +
+    "(e.g. 'potential appreciation depends on supply, existing connectivity, infrastructure, " +
+    "and distance from the station' or similar) rather than presented as a probable or " +
+    "near-certain result. Avoid phrasing like 'is likely to see the sharpest price " +
+    "appreciation' on its own; instead write 'could see stronger demand, though this " +
+    "depends on [specific factors], not distance from the corridor alone.'\n" +
     "- TIME-ANCHORING: for claims tied to a specific date, timeline, or figure that could " +
     "change (construction start dates, prices, policy status), phrase them clearly relative " +
     "to when this article was written (using the article's Date field: " + item.Date + ") " +
@@ -274,9 +319,13 @@ function buildBlogPrompt(item, targetWords, keywordData) {
     "meta title can restate or lightly rephrase the H1 if the H1 already works well for " +
     "search (e.g. already keyword-forward and under 60 characters), but should be written " +
     "as its own field, not just a copy-paste of the headline field.\n\n" +
+    "URL SLUG: generate a clean, lowercase, hyphen-separated URL slug based on the primary " +
+    "keyword and topic (e.g. 'bangalore-metro-phase-3-approved'), suitable for direct use " +
+    "in a website URL. Keep it concise, no more than 6-8 words, no special characters " +
+    "besides hyphens.\n\n" +
     "Respond ONLY with JSON in this exact shape, no other text, no markdown code fences. " +
     "Omit \"tables\" entirely (or use an empty array) if no table is warranted:\n" +
-    '{"headline": "...", "metaTitle": "...", "metaDescription": "one sentence, under 25 words", "body": "...", ' +
+    '{"headline": "...", "metaTitle": "...", "urlSlug": "...", "metaDescription": "one sentence, under 25 words", "body": "...", ' +
     '"tables": [{"caption": "...", "headers": ["..."], "rows": [["..."]]}]}'
   );
 }
@@ -425,7 +474,22 @@ async function runBlogGraph(item, opts = {}) {
     lastIssues = issues;
 
     if (valid) {
-      return { blog: parsed, valid: true, issues: [] };
+      const editorialIssues = await critiqueEditorial(parsed);
+      if (editorialIssues.length > 0) {
+        console.log(
+          `Editorial critique found ${editorialIssues.length} issue(s) for "${item.Headline}":`,
+          editorialIssues
+        );
+      }
+      // Editorial issues are detected and returned for visibility, but do
+      // NOT trigger a retry - this is step one of a planned LangGraph
+      // migration, meant to observe how often each issue type fires
+      // before deciding whether to build automatic fixing on top.
+      return {
+        blog: parsed,
+        valid: valid && editorialIssues.length === 0,
+        issues: [...issues, ...editorialIssues],
+      };
     }
     // else loop again if attempts remain
   }

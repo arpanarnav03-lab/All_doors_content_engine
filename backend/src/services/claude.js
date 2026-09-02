@@ -10,8 +10,15 @@ const client = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
  * only ever need to change what's inside this one function.
  */
 async function callClaude({ model, maxTokens, prompt }) {
+  const resolvedModel = model || process.env.CLAUDE_MODEL || "claude-sonnet-5";
+
+  // Haiku models reject adaptive thinking outright ("adaptive thinking is
+  // not supported on this model", confirmed directly) - only apply it for
+  // models that actually support it.
+  const supportsAdaptiveThinking = !/haiku/i.test(resolvedModel);
+
   const response = await client.messages.create({
-    model: model || process.env.CLAUDE_MODEL || "claude-sonnet-5",
+    model: resolvedModel,
     max_tokens: maxTokens || 3000,
     // Without this, extended thinking runs unbounded and can consume the
     // entire max_tokens budget on long/complex prompts, leaving nothing
@@ -21,8 +28,9 @@ async function callClaude({ model, maxTokens, prompt }) {
     // 0 thinking tokens for trivial classification calls and a bounded,
     // small amount for full blog-length prompts, reliably leaving room
     // for output either way.
-    thinking: { type: "adaptive" },
-    output_config: { effort: "medium" },
+    ...(supportsAdaptiveThinking
+      ? { thinking: { type: "adaptive" }, output_config: { effort: "medium" } }
+      : {}),
     messages: [{ role: "user", content: prompt }],
   });
 
