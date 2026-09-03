@@ -6,18 +6,29 @@ const cors = require("cors");
 const { ready } = require("./db");
 const ideasRouter = require("./routes/ideas");
 const draftsRouter = require("./routes/drafts");
+const authRouter = require("./routes/auth");
+const { requireUserAuth } = require("./middleware/requireUserAuth");
 
 const app = express();
-app.use(cors());
+// Explicit allowedHeaders so the frontend's Authorization: Bearer <jwt>
+// header is never dropped in a cross-origin preflight, regardless of
+// deployment origin (Vercel frontend, Render/Cloud Run backend).
+app.use(cors({ origin: true, allowedHeaders: ["Content-Type", "Authorization"] }));
 app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
-// /api/ideas mixes Apps-Script-only routes and dashboard-only routes, so
-// the service-key check is applied per-route inside routes/ideas.js instead
-// of here.
+app.use("/api/auth", authRouter);
+
+// /api/ideas mixes Apps-Script-only routes (protected by requireServiceKey)
+// and dashboard-only routes (protected by requireUserAuth) - both checks
+// are applied per-route inside routes/ideas.js instead of here, since a
+// single mount-level middleware can't distinguish between them.
 app.use("/api/ideas", ideasRouter);
-app.use("/api/drafts", draftsRouter);
+// /api/drafts is entirely dashboard-facing (list/get/edit/approve/reject),
+// never called by Apps Script directly, so it's safe to protect as a whole
+// at the mount level.
+app.use("/api/drafts", requireUserAuth, draftsRouter);
 
 // Serve the built React frontend in production (after `npm run build` in /frontend)
 const frontendDist = path.join(__dirname, "..", "..", "frontend", "dist");

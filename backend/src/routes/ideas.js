@@ -2,6 +2,7 @@ const express = require("express");
 const crypto = require("crypto");
 const { db } = require("../db");
 const requireServiceKey = require("../middleware/requireServiceKey");
+const { requireUserAuth } = require("../middleware/requireUserAuth");
 const { runBlogGraph } = require("../graph/blogGraph");
 const { extractPrimaryKeyword } = require("../services/keywordExtraction");
 const { getKeywordVolume } = require("../services/keywordPlanner");
@@ -103,8 +104,8 @@ router.post("/pipeline-runs", requireServiceKey, asyncHandler(async (req, res) =
   res.json({ ok: true });
 }));
 
-// GET /api/ideas?status=new  (dashboard - no service key required)
-router.get("/", asyncHandler(async (req, res) => {
+// GET /api/ideas?status=new  (dashboard - requires user auth)
+router.get("/", requireUserAuth, asyncHandler(async (req, res) => {
   const status = req.query.status || "new";
   const result = await db.execute({
     sql: "SELECT * FROM ideas WHERE status = ? ORDER BY created_at DESC",
@@ -113,10 +114,10 @@ router.get("/", asyncHandler(async (req, res) => {
   res.json(result.rows.map(rowToIdea));
 }));
 
-// POST /api/ideas/:id/generate-draft  (dashboard - no service key required)
+// POST /api/ideas/:id/generate-draft  (dashboard - requires user auth)
 // Runs the same generation logic the old intake handler used to run
 // unconditionally, but now only for an idea a human picked.
-router.post("/:id/generate-draft", asyncHandler(async (req, res) => {
+router.post("/:id/generate-draft", requireUserAuth, asyncHandler(async (req, res) => {
   const ideaResult = await db.execute({ sql: "SELECT * FROM ideas WHERE id = ?", args: [req.params.id] });
   const idea = ideaResult.rows[0];
   if (!idea) return res.status(404).json({ ok: false, error: "idea not found" });
@@ -164,8 +165,8 @@ router.post("/:id/generate-draft", asyncHandler(async (req, res) => {
   }
 }));
 
-// POST /api/ideas/:id/dismiss  (dashboard - no service key required)
-router.post("/:id/dismiss", asyncHandler(async (req, res) => {
+// POST /api/ideas/:id/dismiss  (dashboard - requires user auth)
+router.post("/:id/dismiss", requireUserAuth, asyncHandler(async (req, res) => {
   const ideaResult = await db.execute({ sql: "SELECT * FROM ideas WHERE id = ?", args: [req.params.id] });
   const idea = ideaResult.rows[0];
   if (!idea) return res.status(404).json({ ok: false, error: "idea not found" });

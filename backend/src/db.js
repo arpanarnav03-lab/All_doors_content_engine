@@ -82,6 +82,17 @@ async function initDb() {
       checked_at TEXT DEFAULT (datetime('now'))
     )
   `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      reset_token TEXT,
+      reset_token_expires TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
 }
 
 // Started once at module load; index.js awaits this before app.listen() so
